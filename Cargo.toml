@@ -7,3 +7,4 @@ edition = "2021"
 
 [dependencies]
 threadpool = { git = "https://github.com/nihilok/rust_threadpool.git" }
+http_parser = { path = "./src/http_parser" }
