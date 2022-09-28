@@ -7,8 +7,11 @@ use std::{
 };
 use threadpool::ThreadPool;
 
-type FileResponse = (&'static str, &'static str);
-type RouteMap = HashMap<&'static str, fn() -> FileResponse>;
+type HTTPFile = (&'static str, &'static str);
+type RouteMap = HashMap<&'static str, fn() -> HTTPFile>;
+
+const HTTP_SUCCESS: &str = "HTTP/1.1 200 OK";
+const HTTP_NOT_FOUND: &str = "HTTP/1.1 404 NOT FOUND";
 
 
 fn main() {
@@ -89,21 +92,25 @@ impl<'a> Response<'a> {
 }
 
 fn get_response_parts<'a>(path: &str, routes: &RouteMap) -> Response<'a> {
-    let parts = if routes.contains_key(path) { routes.get(path).unwrap()() } else { unknown_request() };
-    let response = Response::new(parts.0, parts.1, Some("audio/mpeg"));
+    let mut success = true;
+    let filename: HTTPFile = match routes.get(path) {
+        None => {
+            success = false;
+            ("404.html", "text/html")
+        }
+        Some(route) => { route() }
+    };
+    let status_line = if success { HTTP_SUCCESS } else { HTTP_NOT_FOUND };
+    let response = Response::new(status_line, filename.0, Some(filename.1));
     return response;
 }
 
-fn unknown_request() -> (&'static str, &'static str) {
-    ("HTTP/1.1 404 NOT FOUND", "404.html")
+fn index() -> HTTPFile {
+    ("hello.html", "text/html")
 }
 
-fn index() -> FileResponse {
-    ("HTTP/1.1 200 OK", "hello.html")
-}
-
-fn download() -> FileResponse {
-    ("HTTP/1.1 200 OK", "test.mp3")
+fn download() -> HTTPFile {
+    ("test.mp3", "audio/mpeg")
 }
 
 fn register_routes() -> RouteMap {
