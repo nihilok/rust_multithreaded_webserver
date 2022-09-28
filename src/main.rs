@@ -14,11 +14,17 @@ type RouteMap = HashMap<&'static str, fn() -> HTTPFile>;
 
 const HTTP_SUCCESS: &str = "HTTP/1.1 200 OK";
 const HTTP_NOT_FOUND: &str = "HTTP/1.1 404 NOT FOUND";
+const ADDR: &str = "0.0.0.0";
+const PORT: u16 = 8080;
 
 
 fn main() {
-    let listener = TcpListener::bind("127.0.0.1:7878").unwrap();
+    let bind_addr = format!("{}:{}", ADDR, PORT);
+    let listener = TcpListener::bind(&bind_addr).unwrap();
+    println!("Listening for TCP traffic at http://{}", bind_addr);
+
     let pool = ThreadPool::new(4);
+
     let routes = register_routes();
 
     for stream in listener.incoming() {
