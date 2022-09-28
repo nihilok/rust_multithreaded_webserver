@@ -6,7 +6,6 @@ use std::{
     str,
 };
 use threadpool::ThreadPool;
-use format_bytes::format_bytes;
 
 type FileResponse = (&'static str, &'static str);
 type RouteMap = HashMap<&'static str, fn() -> FileResponse>;
@@ -38,13 +37,12 @@ fn handle_connection(mut stream: TcpStream, routes: &RouteMap) {
     let response = get_response_parts(path, routes);
     match path {
         "/download" => {
-            stream.write_all(response.file_response().as_bytes()).unwrap();
+            stream.write_all(&response.file_response()).unwrap();
         }
         _ => {
             stream.write_all(response.simple_response().as_bytes()).unwrap();
         }
     }
-    stream.write_all(response.file_response().as_bytes()).unwrap();
 }
 
 struct Response<'a> {
@@ -67,8 +65,8 @@ impl<'a> Response<'a> {
             format!("{}\r\nContent-Length: {}\r\n\r\n{}", self.status_line, self.len(), content);
         return http;
     }
-    fn file_response(&self) -> String {
-        let bytes_string = format_bytes!(b"{}", &self.contents);
+    fn file_response(&self) -> Vec<u8> {
+        let bytes_string = &self.contents[..];
         let content_type = match self.content_type {
             None => { "application/octet-stream" }
             Some(c_type) => { c_type }
@@ -79,14 +77,14 @@ impl<'a> Response<'a> {
                 Connection: keep-alive\r\n\
                 Content-Length: {}\r\n\
                 Content-Type: {}\r\n\
-                content-disposition: attachment; filename*=download.mp3\r\n\r\n\
-                {:?}",
+                content-disposition: attachment; filename*=download.mp3\r\n\r\n",
                 self.status_line,
                 self.len(),
                 content_type,
-                bytes_string
             );
-        return http;
+        let response_bytes = &http.as_bytes();
+        let response = [response_bytes, bytes_string].concat();
+        return response;
     }
 }
 

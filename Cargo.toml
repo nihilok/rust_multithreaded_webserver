@@ -7,4 +7,3 @@ edition = "2021"
 
 [dependencies]
 threadpool = { path = "../../threadpool" }
-format-bytes = "0.3.0"
