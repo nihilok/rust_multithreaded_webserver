@@ -7,6 +7,7 @@ use std::{
     collections::HashMap,
     str,
 };
+use std::error::Error;
 use threadpool::ThreadPool;
 
 type HTTPFile = (String, String);
@@ -25,32 +26,39 @@ fn main() {
     let listener = TcpListener::bind(&bind_addr).unwrap();
     println!("Listening for TCP traffic at http://{}", bind_addr);
 
-
     let routes = register_routes();
 
     for stream in listener.incoming() {
         let stream = stream.unwrap();
         let r = routes.to_owned();
         pool.execute(move || {
-            handle_connection(&stream, &r);
+            handle_connection(stream, r)
         });
     }
 }
 
-fn handle_connection(mut stream: &TcpStream, routes: &RouteMap) {
+fn handle_connection_error(error: Box<dyn Error>) {
+    println!("Error: {:?}", error);
+}
+
+fn handle_connection(mut stream: TcpStream, routes: RouteMap) {
     let buffer: HTTPRequest = HTTPRequest::new(&stream);
-    let response = {
-        let request =  buffer.request();
-        get_response_parts(&request.path, routes)
+    match buffer.request() {
+        Some(r) => {
+            let resp = get_response_parts(&r.path, &routes);
+            match &r.path[..] {
+                "/download" => match stream.write_all(&resp.file_response()) {
+                    Ok(_) => {}
+                    Err(e) => handle_connection_error(Box::new(e))
+                },
+                _ => match stream.write_all(&resp.simple_response()) {
+                    Ok(_) => {}
+                    Err(e) => handle_connection_error(Box::new(e))
+                },
+            }
+        },
+        None => println!("Invalid request"),
     };
-    match &buffer.request().path[..] {
-        "/download" => {
-            let _ = stream.write_all(&response.file_response()).unwrap();
-        }
-        _ => {
-            let _ = stream.write_all(&response.simple_response()).unwrap();
-        }
-    }
 }
 
 fn get_response_parts(path: &str, routes: &RouteMap) -> Response {

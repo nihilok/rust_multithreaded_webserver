@@ -22,7 +22,7 @@ impl Response {
         return Vec::from(http.as_bytes());
     }
     pub fn file_response(&self) -> Vec<u8> {
-        let bytes_string = &self.contents[..];
+        let bytes_array = &self.contents[..];
         let content_type = match &self.content_type {
             None => { "application/octet-stream" }
             Some(c_type) => { c_type }
@@ -39,8 +39,8 @@ impl Response {
                 content_type,
                 self.filename
             );
-        let response_bytes = &http.as_bytes();
-        let response = [response_bytes, bytes_string].concat();
+        let response_bytes = http.as_bytes();
+        let response = [response_bytes, bytes_array].concat();
         return response;
     }
 }
